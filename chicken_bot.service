@@ -1,0 +1,20 @@
+[Unit]
+Description=Chicken Bot - Telegram bot for tracking chicken
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/chicken_bot
+EnvironmentFile=/path/to/chicken_bot/.env
+ExecStart=/path/to/chicken_bot/venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chicken_bot
+
+[Install]
+WantedBy=multi-user.target
