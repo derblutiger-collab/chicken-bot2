@@ -1,0 +1,127 @@
+"""
+Обработчик создания новой партии
+"""
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+
+from database import Database
+from config import Config
+from states import CookFSM
+from utils import WeightParser, WeightValidator
+from keyboards import main_kb
+from .common import send_or_edit, log_message
+
+
+router = Router(name="batch")
+
+
+@router.callback_query(F.data == "new")
+async def new_batch_start(callback: CallbackQuery, state: FSMContext):
+    """Начало создания новой партии"""
+    await state.set_state(CookFSM.raw_total)
+    await callback.message.edit_text(
+        "🥩 <b>Новая партия</b>\n\n"
+        "Сколько весила <b>СЫРАЯ</b> курица?\n\n"
+        "💡 Примеры: 1500, 1.5кг, полкило"
+    )
+    await callback.answer()
+
+
+@router.message(CookFSM.raw_total)
+async def set_raw_weight(message: Message, state: FSMContext, config: Config):
+    """Установка веса сырой курицы"""
+    # Парсинг веса
+    raw = WeightParser.parse(message.text)
+    
+    # Валидация
+    validator = WeightValidator(config.min_weight, config.max_weight)
+    is_valid, error_msg = validator.validate(raw)
+    
+    if not is_valid:
+        await message.answer(
+            f"❌ {error_msg}\n\n"
+            f"💡 Примеры правильного ввода:\n"
+            f"• 1500 или 1500г\n"
+            f"• 1.5 или 1.5кг\n"
+            f"• полкило, четверть"
+        )
+        return
+    
+    # Сохранение и переход к следующему шагу
+    await state.update_data(raw=raw)
+    await state.set_state(CookFSM.cooked_total)
+    
+    formatted_weight = WeightParser.format_weight(raw)
+    await message.answer(
+        f"✅ Сырая курица: <b>{formatted_weight}</b>\n\n"
+        f"🍗 Теперь сколько весит <b>ГОТОВАЯ</b> курица?\n\n"
+        f"💡 Примеры: 1200, 1.2кг"
+    )
+
+
+@router.message(CookFSM.cooked_total)
+async def set_cooked_weight(
+    message: Message, 
+    state: FSMContext, 
+    db: Database,
+    config: Config
+):
+    """Установка веса готовой курицы и создание партии"""
+    # Парсинг веса
+    cooked = WeightParser.parse(message.text)
+    
+    # Валидация веса
+    validator = WeightValidator(config.min_weight, config.max_weight)
+    is_valid, error_msg = validator.validate(cooked)
+    
+    if not is_valid:
+        await message.answer(f"❌ {error_msg}")
+        return
+    
+    # Получение данных о сырой курице
+    data = await state.get_data()
+    raw = data["raw"]
+    
+    # Валидация коэффициента
+    is_valid, error_msg = validator.validate_coef(raw, cooked)
+    
+    if not is_valid:
+        await message.answer(
+            f"❌ {error_msg}\n\n"
+            f"Попробуй ввести вес готовой курицы ещё раз:"
+        )
+        return
+    
+    # Создание партии
+    success = await db.create_batch(raw, cooked)
+    
+    if not success:
+        await message.answer(
+            "😔 Произошла ошибка при сохранении партии.\n"
+            "Попробуй ещё раз позже.",
+            reply_markup=main_kb()
+        )
+        await state.clear()
+        return
+    
+    # Расчёт коэффициента
+    coef = cooked / raw
+    
+    # Очистка состояния
+    await state.clear()
+    
+    # Отправка подтверждения
+    raw_formatted = WeightParser.format_weight(raw)
+    cooked_formatted = WeightParser.format_weight(cooked)
+    
+    msg = await message.answer(
+        f"✅ <b>Партия успешно сохранена!</b>\n\n"
+        f"🥩 Сырая: <b>{raw_formatted}</b>\n"
+        f"🍗 Готовая: <b>{cooked_formatted}</b>\n"
+        f"⚖️ Коэффициент: <b>{coef:.3f}</b>\n\n"
+        f"Теперь можешь брать порции! 😋",
+        reply_markup=main_kb()
+    )
+    
+    await log_message(msg, db, config)
