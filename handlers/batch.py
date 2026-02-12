@@ -82,7 +82,7 @@ async def set_cooked_weight(
     db: Database,
     config: Config
 ):
-    """Установка веса готовой курицы и создание партии"""
+    """Установка веса готовой курицы"""
     # Парсинг веса
     cooked = WeightParser.parse(message.text)
     
@@ -108,8 +108,68 @@ async def set_cooked_weight(
         )
         return
     
-    # Создание партии
-    success = await db.create_batch(raw, cooked)
+    # Сохранить готовый вес и перейти к заметке
+    await state.update_data(cooked=cooked)
+    await state.set_state(CookFSM.note)
+    
+    # Клавиатура с кнопками
+    from keyboards import InlineKeyboardMarkup, InlineKeyboardButton
+    note_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➡️ Пропустить", callback_data="skip_note")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+    ])
+    
+    coef = cooked / raw
+    raw_formatted = WeightParser.format_weight(raw)
+    cooked_formatted = WeightParser.format_weight(cooked)
+    
+    await message.answer(
+        f"✅ Вес принят!\n\n"
+        f"🥩 Сырая: <b>{raw_formatted}</b>\n"
+        f"🍗 Готовая: <b>{cooked_formatted}</b>\n"
+        f"⚖️ Коэффициент: <b>{coef:.3f}</b>\n\n"
+        f"📝 Хочешь добавить заметку к партии?\n"
+        f"💡 Например: \"острая\", \"с овощами\", \"маринованная\"\n\n"
+        f"Напиши заметку или нажми \"Пропустить\":",
+        reply_markup=note_kb
+    )
+
+
+@router.callback_query(F.data == "skip_note", CookFSM.note)
+async def skip_note(callback: CallbackQuery, state: FSMContext, db: Database, config: Config):
+    """Пропустить добавление заметки"""
+    await create_batch_final(callback.message, state, db, config, note=None)
+    await callback.answer()
+
+
+@router.message(CookFSM.note)
+async def set_note(message: Message, state: FSMContext, db: Database, config: Config):
+    """Установка заметки к партии"""
+    note = message.text.strip()
+    
+    # Ограничение длины заметки
+    if len(note) > 100:
+        await message.answer("❌ Заметка слишком длинная! Максимум 100 символов.")
+        return
+    
+    await create_batch_final(message, state, db, config, note=note)
+
+
+async def create_batch_final(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    config: Config,
+    note: str = None
+):
+    """Финальное создание партии с заметкой"""
+    # Получение данных
+    data = await state.get_data()
+    raw = data["raw"]
+    cooked = data["cooked"]
+    
+    # Создание партии с заметкой
+    success = await db.create_batch(raw, cooked, note)
     
     if not success:
         await message.answer(
@@ -120,21 +180,31 @@ async def set_cooked_weight(
         await state.clear()
         return
     
-    # Расчёт коэффициента
-    coef = cooked / raw
+    # Обновить закреплённое сообщение
+    from pinned_status import update_pinned_status
+    await update_pinned_status(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        db=db,
+        message_thread_id=message.message_thread_id
+    )
     
     # Очистка состояния
     await state.clear()
     
     # Отправка подтверждения
+    coef = cooked / raw
     raw_formatted = WeightParser.format_weight(raw)
     cooked_formatted = WeightParser.format_weight(cooked)
     
+    note_text = f"\n📝 Заметка: <b>{note}</b>" if note else ""
+    
     msg = await message.answer(
-        f"✅ <b>Партия успешно сохранена!</b>\n\n"
+        f"✅ <b>Партия успешно создана!</b>\n\n"
         f"🥩 Сырая: <b>{raw_formatted}</b>\n"
         f"🍗 Готовая: <b>{cooked_formatted}</b>\n"
-        f"⚖️ Коэффициент: <b>{coef:.3f}</b>\n\n"
+        f"⚖️ Коэффициент: <b>{coef:.3f}</b>{note_text}\n\n"
+        f"📌 Закреплённое сообщение обновлено!\n\n"
         f"Теперь можешь брать порции! 😋",
         reply_markup=main_kb()
     )

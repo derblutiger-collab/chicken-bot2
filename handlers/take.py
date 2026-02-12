@@ -185,6 +185,15 @@ async def process_take(
         reply_markup=main_kb()
     )
     
+    # Обновить закреплённое сообщение
+    from pinned_status import update_pinned_status
+    await update_pinned_status(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        db=db,
+        message_thread_id=message.message_thread_id
+    )
+    
     # Логирование только для не-callback сообщений
     if not is_callback:
         await log_message(msg, db, config)

@@ -37,6 +37,8 @@ class Database:
                     cooked_total REAL NOT NULL,
                     coef REAL NOT NULL,
                     created TEXT NOT NULL,
+                    note TEXT,
+                    pinned_msg_id INTEGER,
                     CHECK(raw_total > 0 AND cooked_total > 0 AND coef > 0 AND raw_left >= 0)
                 )
             """)
@@ -87,7 +89,7 @@ class Database:
             log.error(f"Ошибка при получении партии: {e}")
             return None
     
-    async def create_batch(self, raw_total: float, cooked_total: float) -> bool:
+    async def create_batch(self, raw_total: float, cooked_total: float, note: str = None) -> bool:
         """Создать новую партию"""
         try:
             coef = cooked_total / raw_total
@@ -96,20 +98,21 @@ class Database:
             async with self.connection() as db:
                 await db.execute("DELETE FROM batch")
                 await db.execute(
-                    """INSERT INTO batch (id, raw_total, raw_left, cooked_total, coef, created) 
-                       VALUES (1, ?, ?, ?, ?, ?)""",
-                    (raw_total, raw_total, cooked_total, coef, created)
+                    """INSERT INTO batch (id, raw_total, raw_left, cooked_total, coef, created, note, pinned_msg_id) 
+                       VALUES (1, ?, ?, ?, ?, ?, ?, NULL)""",
+                    (raw_total, raw_total, cooked_total, coef, created, note)
                 )
                 
                 # Записать в историю в той же транзакции
+                note_text = f" ({note})" if note else ""
                 await db.execute(
                     "INSERT INTO history (action_type, text, created) VALUES (?, ?, ?)",
-                    ("new_batch", f"Новая партия: {int(raw_total)}г сырой → {int(cooked_total)}г готовой (к={coef:.3f})", self._now())
+                    ("new_batch", f"Новая партия: {int(raw_total)}г сырой → {int(cooked_total)}г готовой (к={coef:.3f}){note_text}", self._now())
                 )
                 
                 await db.commit()
                 
-            log.info(f"Создана партия: сырая={raw_total}г, готовая={cooked_total}г, к={coef:.3f}")
+            log.info(f"Создана партия: сырая={raw_total}г, готовая={cooked_total}г, к={coef:.3f}, заметка={note}")
             return True
         except aiosqlite.Error as e:
             log.error(f"Ошибка при создании партии: {e}")
@@ -191,6 +194,21 @@ class Database:
             return True
         except aiosqlite.Error as e:
             log.error(f"Ошибка при удалении партии: {e}")
+            return False
+    
+    async def update_pinned_msg_id(self, msg_id: int) -> bool:
+        """Обновить ID закреплённого сообщения"""
+        try:
+            async with self.connection() as db:
+                await db.execute(
+                    "UPDATE batch SET pinned_msg_id = ? WHERE id = 1",
+                    (msg_id,)
+                )
+                await db.commit()
+            log.info(f"Обновлён ID закреплённого сообщения: {msg_id}")
+            return True
+        except aiosqlite.Error as e:
+            log.error(f"Ошибка при обновлении pinned_msg_id: {e}")
             return False
     
     # ─────────────────── ИСТОРИЯ ───────────────────
