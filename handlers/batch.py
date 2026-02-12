@@ -20,10 +20,18 @@ router = Router(name="batch")
 async def new_batch_start(callback: CallbackQuery, state: FSMContext):
     """Начало создания новой партии"""
     await state.set_state(CookFSM.raw_total)
+    
+    # Клавиатура с кнопкой отмены
+    from keyboards import InlineKeyboardMarkup, InlineKeyboardButton
+    cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+    ])
+    
     await callback.message.edit_text(
         "🥩 <b>Новая партия</b>\n\n"
         "Сколько весила <b>СЫРАЯ</b> курица?\n\n"
-        "💡 Примеры: 1500, 1.5кг, полкило"
+        "💡 Примеры: 1500, 1.5кг, полкило",
+        reply_markup=cancel_kb
     )
     await callback.answer()
 
@@ -52,11 +60,18 @@ async def set_raw_weight(message: Message, state: FSMContext, config: Config):
     await state.update_data(raw=raw)
     await state.set_state(CookFSM.cooked_total)
     
+    # Клавиатура с кнопкой отмены
+    from keyboards import InlineKeyboardMarkup, InlineKeyboardButton
+    cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+    ])
+    
     formatted_weight = WeightParser.format_weight(raw)
     await message.answer(
         f"✅ Сырая курица: <b>{formatted_weight}</b>\n\n"
         f"🍗 Теперь сколько весит <b>ГОТОВАЯ</b> курица?\n\n"
-        f"💡 Примеры: 1200, 1.2кг"
+        f"💡 Примеры: 1200, 1.2кг",
+        reply_markup=cancel_kb
     )
 
 

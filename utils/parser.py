@@ -90,12 +90,6 @@ class WeightParser:
             grams: вес в граммах
             
         Returns:
-            str: отформатированная строка (например "1.5 кг" или "350 г")
+            str: отформатированная строка в граммах (например "1500 г")
         """
-        if grams >= 1000:
-            kg = grams / 1000
-            if kg == int(kg):
-                return f"{int(kg)} кг"
-            return f"{kg:.1f} кг"
-        
         return f"{int(grams)} г"

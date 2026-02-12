@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 
 from config import Config
 from database import Database
-from middlewares import LoggingMiddleware, ErrorHandlerMiddleware
+from middlewares import LoggingMiddleware, ErrorHandlerMiddleware, TopicFilterMiddleware
 from handlers import register_handlers
 
 
@@ -75,6 +75,11 @@ async def main():
         dp = Dispatcher()
         
         # Регистрация middleware
+        # TopicFilter должен быть ПЕРВЫМ (фильтрует до всего остального)
+        if config.topic_id:
+            dp.message.middleware(TopicFilterMiddleware(config.topic_id))
+            log.info(f"Бот будет работать только в топике ID: {config.topic_id}")
+        
         dp.message.middleware(LoggingMiddleware())
         dp.callback_query.middleware(LoggingMiddleware())
         dp.message.middleware(ErrorHandlerMiddleware())

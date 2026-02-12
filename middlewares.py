@@ -11,6 +11,47 @@ from aiogram.types import Message, CallbackQuery, TelegramObject
 log = logging.getLogger(__name__)
 
 
+class TopicFilterMiddleware(BaseMiddleware):
+    """Middleware для фильтрации по топику (ветке) в группе"""
+    
+    def __init__(self, topic_id: int = None):
+        """
+        Args:
+            topic_id: ID топика где должен работать бот (None = работает везде)
+        """
+        super().__init__()
+        self.topic_id = topic_id
+    
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
+        """Проверка топика"""
+        
+        # Если топик не указан - пропускаем все
+        if self.topic_id is None:
+            return await handler(event, data)
+        
+        # Проверяем только сообщения (не callback)
+        if isinstance(event, Message):
+            # Получаем ID топика из сообщения
+            message_thread_id = event.message_thread_id
+            
+            # Логируем для отладки
+            if message_thread_id:
+                log.debug(f"Сообщение из топика {message_thread_id}")
+            
+            # Если сообщение не из нужного топика - игнорируем
+            if message_thread_id != self.topic_id:
+                log.debug(f"Игнорируем сообщение из топика {message_thread_id} (нужен {self.topic_id})")
+                return None
+        
+        # Callback всегда обрабатываем (они от кнопок)
+        return await handler(event, data)
+
+
 class LoggingMiddleware(BaseMiddleware):
     """Middleware для логирования сообщений и callback'ов"""
     

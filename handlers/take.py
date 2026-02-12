@@ -65,9 +65,16 @@ async def take_quick(
     """Быстрый выбор порции"""
     # Проверка на "другое"
     if callback.data == "take_other":
+        # Клавиатура с кнопкой отмены
+        from keyboards import InlineKeyboardMarkup, InlineKeyboardButton
+        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+        ])
+        
         await callback.message.edit_text(
             "✍️ Введи вес сырой курицы:\n\n"
-            "💡 Примеры: 150, 200, 0.25кг"
+            "💡 Примеры: 150, 200, 0.25кг",
+            reply_markup=cancel_kb
         )
         await callback.answer()
         return
