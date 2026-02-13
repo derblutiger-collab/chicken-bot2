@@ -16,16 +16,16 @@ def format_progress_bar(current: float, total: float, length: int = 10) -> str:
         length: длина бара в символах
         
     Returns:
-        str: прогресс-бар (например "████████░░")
+        str: прогресс-бар (например "■■■■■□□□□□")
     """
     if total == 0:
-        return "░" * length
+        return "□" * length
     
     percentage = current / total
     filled = int(percentage * length)
     empty = length - filled
     
-    return "█" * filled + "░" * empty
+    return "■" * filled + "□" * empty
 
 
 def get_status_emoji(percentage: float) -> str:
