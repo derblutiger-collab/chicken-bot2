@@ -135,7 +135,7 @@ def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> st
     # Форматирование даты
     try:
         created_dt = datetime.fromisoformat(created)
-        created_str = created_dt.strftime("%d.%m.%Y %H:%M")
+        created_str = created_dt.strftime("%d-%m-%y %H:%M")
     except:
         created_str = created
     
@@ -192,7 +192,7 @@ def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> st
     
     # Последнее обновление
     lines.append("")
-    now = datetime.now().strftime("%d.%m %H:%M")
+    now = datetime.now().strftime("%d-%m %H:%M")
     lines.append(f"🔄 Обновлено: {now}")
     
     return "\n".join(lines)

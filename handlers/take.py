@@ -98,6 +98,12 @@ async def take_manual(
     config: Config
 ):
     """Ручной ввод веса порции"""
+    # Удалить сообщение пользователя для чистоты
+    try:
+        await message.delete()
+    except:
+        pass
+    
     # Парсинг веса
     grams = WeightParser.parse(message.text)
     

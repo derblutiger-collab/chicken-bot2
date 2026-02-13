@@ -39,6 +39,12 @@ async def new_batch_start(callback: CallbackQuery, state: FSMContext):
 @router.message(CookFSM.raw_total)
 async def set_raw_weight(message: Message, state: FSMContext, config: Config):
     """Установка веса сырой курицы"""
+    # Удалить сообщение пользователя для чистоты
+    try:
+        await message.delete()
+    except:
+        pass
+    
     # Парсинг веса
     raw = WeightParser.parse(message.text)
     
@@ -83,6 +89,12 @@ async def set_cooked_weight(
     config: Config
 ):
     """Установка веса готовой курицы"""
+    # Удалить сообщение пользователя для чистоты
+    try:
+        await message.delete()
+    except:
+        pass
+    
     # Парсинг веса
     cooked = WeightParser.parse(message.text)
     
@@ -145,6 +157,12 @@ async def skip_note(callback: CallbackQuery, state: FSMContext, db: Database, co
 @router.message(CookFSM.note)
 async def set_note(message: Message, state: FSMContext, db: Database, config: Config):
     """Установка заметки к партии"""
+    # Удалить сообщение пользователя для чистоты
+    try:
+        await message.delete()
+    except:
+        pass
+    
     note = message.text.strip()
     
     # Ограничение длины заметки
