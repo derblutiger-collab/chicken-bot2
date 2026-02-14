@@ -200,6 +200,18 @@ async def process_take(
         message_thread_id=message.message_thread_id
     )
     
+    # Проверить нужно ли уведомление о низком остатке
+    try:
+        from notifications import NotificationManager
+        notif_manager = NotificationManager(db, config)
+        await notif_manager.check_and_notify(
+            message.bot,
+            message.chat.id,
+            message.message_thread_id
+        )
+    except Exception as e:
+        log.error(f"Ошибка проверки уведомлений: {e}")
+    
     # Логирование только для не-callback сообщений
     if not is_callback:
         await log_message(msg, db, config)

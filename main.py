@@ -4,15 +4,19 @@
 import asyncio
 import logging
 import sys
+import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from config import Config
 from database import Database
 from middlewares import LoggingMiddleware, ErrorHandlerMiddleware, TopicFilterMiddleware
 from handlers import register_handlers
+from backup import BackupManager
 
 
 # Настройка логирования
@@ -91,6 +95,26 @@ async def main():
         # Передача зависимостей в обработчики
         dp["db"] = db
         dp["config"] = config
+        
+        # Настройка автоматических бэкапов
+        if config.admin_ids:
+            backup_manager = BackupManager(db.db_path)
+            scheduler = AsyncIOScheduler(timezone="UTC")
+            
+            # Автобэкап каждый день в 03:00 UTC (06:00 MSK)
+            scheduler.add_job(
+                backup_manager.auto_backup,
+                trigger=CronTrigger(hour=3, minute=0),
+                args=[bot, config.admin_ids],
+                id="daily_backup",
+                name="Ежедневный автобэкап БД",
+                replace_existing=True
+            )
+            
+            scheduler.start()
+            log.info("✅ Планировщик автобэкапов запущен (каждый день в 03:00 UTC)")
+        else:
+            log.warning("⚠️ Автобэкапы отключены: администраторы не настроены")
         
         # Запуск бота
         await on_startup(bot, config)

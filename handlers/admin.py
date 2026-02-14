@@ -172,3 +172,61 @@ async def show_stats(message: Message, config: Config, db: Database):
         f"• Взято порций: {take_count}",
         reply_markup=main_kb()
     )
+
+
+@router.callback_query(F.data == "admin_backup")
+async def admin_backup(callback: CallbackQuery, config: Config, db: Database):
+    """Создать бэкап вручную"""
+    if not config.is_admin(callback.from_user.id):
+        await callback.answer("❌ Недостаточно прав", show_alert=True)
+        return
+    
+    await callback.message.edit_text(
+        "💾 <b>Создание бэкапа...</b>\n\n"
+        "Подожди несколько секунд...",
+        reply_markup=None
+    )
+    
+    try:
+        from backup import BackupManager
+        
+        backup_manager = BackupManager(db.db_path)
+        backup_path = await backup_manager.create_backup()
+        
+        if not backup_path:
+            await callback.message.edit_text(
+                "❌ <b>Ошибка создания бэкапа</b>\n\n"
+                "Проверь логи для деталей",
+                reply_markup=admin_kb()
+            )
+            return
+        
+        # Отправить бэкап админу
+        success = await backup_manager.send_backup_to_admin(
+            callback.message.bot,
+            callback.from_user.id,
+            backup_path
+        )
+        
+        if success:
+            await callback.message.edit_text(
+                "✅ <b>Бэкап создан!</b>\n\n"
+                "Файл отправлен тебе в личку.\n"
+                "Храни его в безопасном месте! 🔐",
+                reply_markup=admin_kb()
+            )
+        else:
+            await callback.message.edit_text(
+                "⚠️ <b>Бэкап создан, но не отправлен</b>\n\n"
+                "Возможно, бот не может писать тебе в личку.\n"
+                "Напиши боту /start в личке и попробуй снова.",
+                reply_markup=admin_kb()
+            )
+        
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ <b>Ошибка:</b>\n\n{str(e)}",
+            reply_markup=admin_kb()
+        )
+    
+    await callback.answer()
