@@ -45,7 +45,7 @@ async def update_pinned_status(
         status_text = format_status_message(batch, history)
         
         # Получить ID старого закреплённого сообщения
-        old_pinned_id = batch.get("pinned_msg_id")
+        old_pinned_id = batch["pinned_msg_id"] if "pinned_msg_id" in batch.keys() else None
         
         # Попытка обновить существующее сообщение
         if old_pinned_id:
@@ -107,7 +107,7 @@ async def unpin_status(bot: Bot, chat_id: int, db: Database) -> bool:
         if not batch:
             return False
         
-        pinned_id = batch.get("pinned_msg_id")
+        pinned_id = batch["pinned_msg_id"] if "pinned_msg_id" in batch.keys() else None
         if not pinned_id:
             return False
         

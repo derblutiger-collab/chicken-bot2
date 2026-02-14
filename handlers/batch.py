@@ -209,7 +209,7 @@ async def create_batch_final(
     
     # Проверить есть ли уже закреплённое сообщение
     batch = await db.get_batch()
-    has_pinned = batch and batch.get("pinned_msg_id")
+    has_pinned = batch and batch["pinned_msg_id"] if batch else False
     
     # Очистка состояния
     await state.clear()

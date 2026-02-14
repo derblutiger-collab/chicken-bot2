@@ -122,7 +122,7 @@ def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> st
     cooked_total = batch_data["cooked_total"]
     coef = batch_data["coef"]
     created = batch_data["created"]
-    note = batch_data.get("note")
+    note = batch_data["note"] if "note" in batch_data.keys() else None
     
     # Вычисления
     cooked_left = raw_left * coef
