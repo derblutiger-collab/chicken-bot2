@@ -106,13 +106,14 @@ def estimate_days_left(current: float, avg_per_day: float) -> Optional[int]:
     return int(current / avg_per_day)
 
 
-def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> str:
+def format_status_message(batch_data: aiosqlite.Row, history_records=None, timezone_offset: int = 0) -> str:
     """
     Форматировать сообщение о статусе партии
     
     Args:
         batch_data: данные партии из БД
         history_records: записи истории для прогноза
+        timezone_offset: смещение часового пояса от UTC в часах
         
     Returns:
         str: отформатированное сообщение
@@ -157,31 +158,6 @@ def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> st
     if note:
         lines.append(f"📝 <b>Заметка:</b> {note}")
     
-    # Прогноз расхода
-    if history_records:
-        avg_consumption = calculate_avg_consumption(history_records, days=7)
-        if avg_consumption and avg_consumption > 0:
-            days_left = estimate_days_left(raw_left, avg_consumption)
-            
-            lines.append("")
-            lines.append("━━━━━━━━━━━━━━━━━━━")
-            lines.append("📈 <b>ПРОГНОЗ</b>")
-            lines.append(f"📊 Средний расход: {int(avg_consumption)} г/день")
-            
-            if days_left is not None:
-                if days_left == 0:
-                    lines.append("⏰ Осталось: <b>менее 1 дня</b>")
-                elif days_left == 1:
-                    lines.append("⏰ Осталось: <b>~1 день</b>")
-                else:
-                    lines.append(f"⏰ Осталось: <b>~{days_left} дней</b>")
-                
-                # Предупреждения
-                if days_left <= 1:
-                    lines.append("🔴 <b>СРОЧНО!</b> Готовь новую партию!")
-                elif days_left <= 3:
-                    lines.append("🟡 <b>Внимание!</b> Скоро закончится")
-    
     # Предупреждение о низком остатке
     if percentage < 0.2:
         lines.append("")
@@ -192,7 +168,10 @@ def format_status_message(batch_data: aiosqlite.Row, history_records=None) -> st
     
     # Последнее обновление
     lines.append("")
-    now = datetime.now().strftime("%d-%m %H:%M")
+    from datetime import timedelta
+    utc_now = datetime.now()
+    local_now = utc_now + timedelta(hours=timezone_offset)
+    now = local_now.strftime("%d-%m %H:%M")
     lines.append(f"🔄 Обновлено: {now}")
     
     return "\n".join(lines)

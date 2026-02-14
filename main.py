@@ -62,9 +62,9 @@ async def main():
             log.info(f"Создана директория для БД: {db_dir}")
         
         # Инициализация базы данных
-        db = Database(config.db_path)
+        db = Database(config.db_path, timezone_offset=config.timezone_offset)
         await db.init()
-        log.info(f"База данных инициализирована: {config.db_path}")
+        log.info(f"База данных инициализирована: {config.db_path} (часовой пояс: UTC{config.timezone_offset:+d})")
         
         # Создание бота и диспетчера
         bot = Bot(

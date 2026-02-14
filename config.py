@@ -20,6 +20,10 @@ class Config:
     # ЗАХАРДКОЖЕНО для BotHost.ru
     topic_id: int = 4
     
+    # Часовой пояс (смещение от UTC в часах)
+    # Для Москвы: +3
+    timezone_offset: int = 3
+    
     # Лимиты веса
     min_weight: float = 10.0  # г
     max_weight: float = 10000.0  # г (10 кг)

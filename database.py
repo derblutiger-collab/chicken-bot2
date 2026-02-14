@@ -15,8 +15,14 @@ log = logging.getLogger(__name__)
 class Database:
     """Класс для работы с базой данных"""
     
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, timezone_offset: int = 0):
+        """
+        Args:
+            db_path: путь к файлу БД
+            timezone_offset: смещение часового пояса от UTC в часах (например, +3 для MSK)
+        """
         self.db_path = db_path
+        self.timezone_offset = timezone_offset
     
     @asynccontextmanager
     async def connection(self):
@@ -303,7 +309,9 @@ class Database:
     
     # ─────────────────── УТИЛИТЫ ───────────────────
     
-    @staticmethod
-    def _now() -> str:
-        """Текущая дата и время"""
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def _now(self) -> str:
+        """Текущая дата и время с учётом часового пояса"""
+        from datetime import timedelta
+        utc_now = datetime.now()
+        local_now = utc_now + timedelta(hours=self.timezone_offset)
+        return local_now.strftime("%Y-%m-%d %H:%M:%S")

@@ -41,8 +41,8 @@ async def update_pinned_status(
         # Получить историю для прогноза
         history = await db.get_history(limit=50)
         
-        # Форматировать сообщение
-        status_text = format_status_message(batch, history)
+        # Форматировать сообщение с учётом часового пояса
+        status_text = format_status_message(batch, history, timezone_offset=db.timezone_offset)
         
         # Получить ID старого закреплённого сообщения
         old_pinned_id = batch["pinned_msg_id"] if "pinned_msg_id" in batch.keys() else None
